@@ -22,13 +22,15 @@ jobs:
           <!DOCTYPE html>
           <html>
           <body>
-            <h1>Generado automáticamente</h1>
+            <h1>Hola</h1>
           </body>
           </html>
           EOF
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: .
 
-      - uses: actions/deploy-pages@v4
+      - name: Deploy
+        uses: actions/deploy-pages@v4
