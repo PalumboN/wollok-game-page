@@ -16,13 +16,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install wollok-web-tools
+        run: npm install wollok-web-tools
+
+      - name: Copy game runtime
+        run: |
+          cp node_modules/wollok-web-tools/dist/web/game-index.js ./game-index.js
+
+      - name: Generate paths.txt
+        run: |
+          find . -type f \
+            -not -path './.git/*' \
+            -not -path './node_modules/*' \
+            -not -path './.github/*' \
+            > paths.txt
+
       - name: Generate HTML
         run: |
           cat > index.html <<'EOF'
           <!DOCTYPE html>
-          <html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Wollok Game</title>
+          </head>
           <body>
-            <h1>Hola</h1>
+            <h1>Project files</h1>
+
+            <ul id="paths"></ul>
+
+            <script src="./game-index.js"></script>
+
+            <script>
+              fetch('./paths.txt')
+                .then(response => response.text())
+                .then(text => {
+                  const paths = text
+                    .split('\n')
+                    .filter(path => path.trim() !== '');
+
+                  const list = document.getElementById('paths');
+
+                  paths.forEach(path => {
+                    const item = document.createElement('li');
+                    item.textContent = path;
+                    list.appendChild(item);
+                  });
+                });
+            </script>
           </body>
           </html>
           EOF
