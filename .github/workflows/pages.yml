@@ -155,12 +155,14 @@ jobs:
 
                   status(`Cargando proyecto (${totalFiles} archivos)...`)
 
+                  const main = sourcePaths.find(path => path.endsWith('.wpgm')).slice(0, -5)
+
                   return Promise.all(
                       sourcePaths.map(path =>
                           fetchFile(path, ++current, totalFiles)
                       )
                   ).then(sources => ({
-                      main: 'pepita',
+                      main,
 
                       sources,
 
@@ -191,7 +193,7 @@ jobs:
                   loadingStatus.textContent = error.message
               })
           EOF
-          
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
