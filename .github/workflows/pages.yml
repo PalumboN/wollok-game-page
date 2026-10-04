@@ -29,42 +29,96 @@ jobs:
             -not -path './.git/*' \
             -not -path './node_modules/*' \
             -not -path './.github/*' \
+            -not -name 'paths.txt' \
+            -not -name 'game-index.js' \
+            -not -name 'index.html' \
+            -not -name 'test.js' \
+            | sed 's|^\./||' \
             > paths.txt
 
-      - name: Generate HTML
+      - name: Generate test.js
+        run: |
+          cat > test.js <<'EOF'
+          const parent = document.getElementById('game')
+
+          const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+          const soundExtensions = ['.mp3', '.wav', '.ogg']
+
+          const isExtension = (path, extensions) =>
+              extensions.some(extension =>
+                  path.toLowerCase().endsWith(extension)
+              )
+
+          fetch('./paths.txt')
+              .then(response => response.text())
+              .then(text => text
+                  .split('\n')
+                  .map(path => path.trim())
+                  .filter(path => path !== '')
+              )
+              .then(paths => {
+                  const sourcePaths = paths.filter(path =>
+                      path.endsWith('.wlk') || path.endsWith('.wpgm')
+                  )
+
+                  const imagePaths = paths.filter(path =>
+                      isExtension(path, imageExtensions)
+                  )
+
+                  const soundPaths = paths.filter(path =>
+                      isExtension(path, soundExtensions)
+                  )
+
+                  return Promise.all(
+                      sourcePaths.map(path =>
+                          fetch(`./${path}`)
+                              .then(response => response.text())
+                              .then(content => ({
+                                  name: path,
+                                  content
+                              }))
+                      )
+                  ).then(sources => ({
+                      main: 'pepita',
+                      sources,
+                      images: imagePaths.map(path => ({
+                          possiblePaths: [path],
+                          url: `./${path}`
+                      })),
+                      sounds: soundPaths.map(path => ({
+                          possiblePaths: [path],
+                          url: `./${path}`
+                      }))
+                  }))
+              })
+              .then(project => {
+                  console.log('Project:', project)
+                  new LocalGame(project).start(parent)
+              })
+          EOF
+
+      - name: Generate index.html
         run: |
           cat > index.html <<'EOF'
           <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <title>Wollok Game</title>
-          </head>
-          <body>
-            <h1>Project files</h1>
+          <html>
+            <head>
+              <link rel="stylesheet" href="game.css" />
 
-            <ul id="paths"></ul>
+              <script>
+                var process = {};
+              </script>
 
-            <script src="./game-index.js"></script>
+              <script src="./game-index.js"></script>
+            </head>
 
-            <script>
-              fetch('./paths.txt')
-                .then(response => response.text())
-                .then(text => {
-                  const paths = text
-                    .split('\n')
-                    .filter(path => path.trim() !== '');
+            <body>
+              <main>
+                <div id="game" class="game"></div>
+              </main>
 
-                  const list = document.getElementById('paths');
-
-                  paths.forEach(path => {
-                    const item = document.createElement('li');
-                    item.textContent = path;
-                    list.appendChild(item);
-                  });
-                });
-            </script>
-          </body>
+              <script src="./test.js"></script>
+            </body>
           </html>
           EOF
 
