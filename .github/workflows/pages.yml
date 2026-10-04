@@ -36,10 +36,57 @@ jobs:
             | sed 's|^\./||' \
             > paths.txt
 
+      - name: Generate index.html
+        run: |
+          cat > index.html <<'EOF'
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="game.css" />
+
+              <style>
+                #loading {
+                  font-family: sans-serif;
+                  padding: 2rem;
+                  text-align: center;
+                }
+
+                #loading-status {
+                  margin-top: 1rem;
+                  font-size: 0.9rem;
+                  opacity: 0.7;
+                }
+              </style>
+
+              <script>
+                var process = {};
+              </script>
+
+              <script src="./game-index.js"></script>
+            </head>
+
+            <body>
+              <div id="loading">
+                <div id="loading-message">Cargando...</div>
+                <div id="loading-status"></div>
+              </div>
+
+              <main>
+                <div id="game" class="game"></div>
+              </main>
+
+              <script src="./test.js"></script>
+            </body>
+          </html>
+          EOF
+
       - name: Generate test.js
         run: |
           cat > test.js <<'EOF'
           const parent = document.getElementById('game')
+          const loading = document.getElementById('loading')
+          const loadingMessage = document.getElementById('loading-message')
+          const loadingStatus = document.getElementById('loading-status')
 
           const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
           const soundExtensions = ['.mp3', '.wav', '.ogg']
@@ -49,14 +96,44 @@ jobs:
                   path.toLowerCase().endsWith(extension)
               )
 
+          const status = message => {
+              loadingMessage.textContent = message
+          }
+
+          const progress = (current, total) => {
+              loadingStatus.textContent = `${current} / ${total}`
+          }
+
+          const fetchFile = (path, current, total) => {
+              status(`Cargando ${path}`)
+              progress(current, total)
+
+              return fetch(`./${path}`)
+                  .then(response => {
+                      if (!response.ok) {
+                          throw new Error(
+                              `Could not load ${path}: ${response.status}`
+                          )
+                      }
+
+                      return response.text()
+                  })
+                  .then(content => ({
+                      name: path,
+                      content
+                  }))
+          }
+
+          status('Buscando archivos del proyecto...')
+
           fetch('./paths.txt')
               .then(response => response.text())
-              .then(text => text
-                  .split('\n')
-                  .map(path => path.trim())
-                  .filter(path => path !== '')
-              )
-              .then(paths => {
+              .then(text => {
+                  const paths = text
+                      .split('\n')
+                      .map(path => path.trim())
+                      .filter(path => path !== '')
+
                   const sourcePaths = paths.filter(path =>
                       path.endsWith('.wlk') || path.endsWith('.wpgm')
                   )
@@ -69,22 +146,29 @@ jobs:
                       isExtension(path, soundExtensions)
                   )
 
+                  const totalFiles =
+                      sourcePaths.length +
+                      imagePaths.length +
+                      soundPaths.length
+
+                  let current = 0
+
+                  status(`Cargando proyecto (${totalFiles} archivos)...`)
+
                   return Promise.all(
                       sourcePaths.map(path =>
-                          fetch(`./${path}`)
-                              .then(response => response.text())
-                              .then(content => ({
-                                  name: path,
-                                  content
-                              }))
+                          fetchFile(path, ++current, totalFiles)
                       )
                   ).then(sources => ({
-                      main: 'mainExample',
+                      main: 'pepita',
+
                       sources,
+
                       images: imagePaths.map(path => ({
                           possiblePaths: [path],
                           url: `./${path}`
                       })),
+
                       sounds: soundPaths.map(path => ({
                           possiblePaths: [path],
                           url: `./${path}`
@@ -92,36 +176,22 @@ jobs:
                   }))
               })
               .then(project => {
-                  console.log('Project:', project)
-                  new LocalGame(project).start(parent)
+                  status('Iniciando juego...')
+                  loadingStatus.textContent = ''
+
+                  return new LocalGame(project).start(parent)
+              })
+              .then(() => {
+                  loading.remove()
+              })
+              .catch(error => {
+                  console.error(error)
+
+                  loadingMessage.textContent = 'Error al cargar el juego'
+                  loadingStatus.textContent = error.message
               })
           EOF
-
-      - name: Generate index.html
-        run: |
-          cat > index.html <<'EOF'
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <link rel="stylesheet" href="game.css" />
-
-              <script>
-                var process = {};
-              </script>
-
-              <script src="./game-index.js"></script>
-            </head>
-
-            <body>
-              <main>
-                <div id="game" class="game"></div>
-              </main>
-
-              <script src="./test.js"></script>
-            </body>
-          </html>
-          EOF
-
+          
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
