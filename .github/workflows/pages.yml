@@ -79,7 +79,7 @@ jobs:
                               }))
                       )
                   ).then(sources => ({
-                      main: 'pepita',
+                      main: 'mainExample',
                       sources,
                       images: imagePaths.map(path => ({
                           possiblePaths: [path],
