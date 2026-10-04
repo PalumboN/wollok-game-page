@@ -14,13 +14,16 @@ runs:
   - uses: actions/checkout@v4
 
   - name: Install wollok-web-tools
+    shell: bash
     run: npm install wollok-web-tools
 
   - name: Copy game runtime
+    shell: bash
     run: |
       cp node_modules/wollok-web-tools/dist/web/game-index.js ./game-index.js
 
   - name: Generate paths.txt
+    shell: bash
     run: |
       find . -type f \
         -not -path './.git/*' \
@@ -34,6 +37,7 @@ runs:
         > paths.txt
 
   - name: Generate index.html
+    shell: bash
     run: |
       cat > index.html <<'EOF'
       <!DOCTYPE html>
@@ -78,6 +82,7 @@ runs:
       EOF
 
   - name: Generate test.js
+    shell: bash
     run: |
       cat > test.js <<'EOF'
       const parent = document.getElementById('game')
